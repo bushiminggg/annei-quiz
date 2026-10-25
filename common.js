@@ -22,11 +22,11 @@ db.onValue(ref(".info/serverTimeOffset"), s => offset = s.val() || 0);
 export const now = () => Date.now() + offset;
 
 // ランキングのHTML(medals=trueで1〜3位に金銀銅。同点は同順位)
-export const board = (sc, me, k = 99, medals = false) => {
+export const board = (sc, me, k = 99, medals = false, hit = false) => {
   const a = Object.entries(sc || {}).sort((x, y) => y[1].t - x[1].t), m = ["🥇", "🥈", "🥉"];
   return a.slice(0, k).map(([id, v]) => {
     const r = a.findIndex(z => z[1].t === v.t);
-    return `<li class="${id === me ? "me" : ""}"><span>${medals && v.t > 0 && m[r] ? m[r] : r + 1}</span>${esc(v.n)}<em>${v.t}</em></li>`;
+    return `<li class="${id === me ? "me" : ""} ${hit && v.g > 0 ? "hit" : ""}"><span>${medals && v.t > 0 && m[r] ? m[r] : r + 1}</span>${esc(v.n)}<em>${v.t}</em></li>`;
   }).join("");
 };
 

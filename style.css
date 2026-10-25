@@ -32,7 +32,7 @@ ol.board{list-style:none;padding:0;margin:16px 0}
 .board li{display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
 .board li span{width:34px;font-weight:900}
 .board li em{margin-left:auto;font-style:normal;font-weight:900}
-.board li.me{background:#E6ECFD;border-radius:8px}
+.board li.me{background:#E6ECFD;border-radius:8px;box-shadow:inset 0 0 0 2px var(--main)}
 @media (prefers-reduced-motion:reduce){#bar{transition:none}}
 .pt{display:inline-block;margin-left:10px;padding:0 10px;border:2px solid var(--ink);border-radius:99px;font-weight:900;color:var(--ink)}
 .snd{position:fixed;top:16px;right:14px;padding:4px 12px;font-size:13px}
@@ -46,5 +46,7 @@ ol.board{list-style:none;padding:0;margin:16px 0}
 .dq li span{width:20px;font-weight:900}
 .dq li.o span{color:#0E7A66}.dq li.x span{color:#C0392B}
 .dq li em{margin-left:auto;font-style:normal;color:#5B6783}
-.dq li.me{background:#E6ECFD;border-radius:6px}
+.dq li.me{border-radius:6px;box-shadow:inset 0 0 0 2px var(--main)}
 button.main:disabled{opacity:.4;cursor:default}
+.dq li.o{background:#DFF3EA;border-radius:6px}
+.board li.hit{background:#DFF3EA;border-radius:8px}

@@ -60,7 +60,7 @@ async function render() {
   if (rev) {
     const me = sc[uid] || {t: 0, g: 0};
     const r = !done ? (cur >= 0 ? "未回答(確定されませんでした)" : "未回答") : my.c === rv.a ? `正解！ +${me.g}点` : "不正解";
-    foot = `<p class="result">${r}</p><p class="meta">合計 ${me.t}点</p><p class="meta"><span id="nx">10</span>秒後に${st.i + 1 >= st.n ? "最終結果" : "次の問題"}へ進みます</p><ol class="board">${board(sc, uid, 5)}</ol>`;
+    foot = `<p class="result">${r}</p><p class="meta">合計 ${me.t}点</p><p class="meta"><span id="nx">10</span>秒後に${st.i + 1 >= st.n ? "最終結果" : "次の問題"}へ進みます</p><ol class="board">${board(sc, uid, 5, false, true)}</ol>`;
   } else foot = done ? `<p class="meta">回答を確定しました。結果発表をお待ちください</p>`
     : `<button id="ok" class="main" ${cur >= 0 ? "" : "disabled"}>確定する</button><p class="meta">選択肢を選んで「確定する」を押してください。確定するまで選び直せます</p>`;
   show(`<p class="meta">第${i + 1}問 / ${st.n}<span class="pt">${q.p}点</span></p><h2>${esc(q.q)}</h2><div class="choices">${btns}</div>${foot}`);

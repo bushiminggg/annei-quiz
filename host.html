@@ -98,7 +98,7 @@ function draw() {
     const last = st.i + 1 >= st.n;
     app.innerHTML = `${head}<p class="meta">第${st.i + 1}問の結果</p><h2>${esc(q.q)}</h2>
     <div class="choices">${q.c.map((t, k) => `<div class="ch c${k} ${k === rv.a ? "ok" : "dim"}"><b>${"ABCD"[k]}</b>${esc(t)}<span style="margin-left:auto">${(rv.counts || [])[k] || 0}人</span></div>`).join("")}</div>
-    <ol class="board">${board(sc, "", 5)}</ol>
+    <ol class="board">${board(sc, "", 5, false, true)}</ol>
     <p class="meta"><span id="nx">${st.rev ? Math.max(0, Math.ceil((AUTO - (now() - st.rev)) / 1000)) : 10}</span>秒後に${last ? "最終結果" : "次の問題"}へ進みます</p>
     <button class="main" data-act="${last ? "final" : "next"}">今すぐ${last ? "最終結果へ" : "次の問題へ"}</button>`;
   } else if (st.phase === "final") {
