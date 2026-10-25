@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>クイズ大会</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head>
+<body><div id="bar"></div><main id="app"></main>
+<script type="module">
+import {db, ready, ref, now, $, esc, board, sfx, soundBtn} from "./common.js";
+soundBtn();
+const app = $("#app"), bar = $("#bar"), show = h => app.innerHTML = h;
+let uid, code = "", name = "", st = null, sc = {}, rv = {}, qs = {}, my = {i: -1, c: -1}, tm, played = "", lastTick = 0;
+const q0 = new URLSearchParams(location.search).get("room");
+(async () => { uid = (await ready).uid; code = q0 || localStorage.qzRoom || ""; name = localStorage.qzName || ""; form(); })();
+
+function form(msg = "") {
+  show(`<h1>クイズ大会</h1>
+  <label>ルームコード<input id="c" inputmode="numeric" maxlength="4" value="${esc(code)}"></label>
+  <label>ニックネーム<input id="n" maxlength="12" value="${esc(name)}"></label>
+  <p class="err">${msg}</p><button id="go" class="main">参加する</button>`);
+  $("#go").onclick = async () => {
+    sfx.unlock();
+    code = $("#c").value.trim(); name = $("#n").value.trim();
+    if (!code || !name) return form("ルームコードとニックネームを入力してください");
+    const h = await db.get(ref(`rooms/${code}/host`));
+    if (!h.exists()) return form("そのルームは見つかりません。コードを確認してください");
+    localStorage.qzRoom = code; localStorage.qzName = name;
+    await db.set(ref(`rooms/${code}/players/${uid}`), {n: name});
+    db.onValue(ref(`rooms/${code}/state`), s => { st = s.val(); render(); });
+    db.onValue(ref(`rooms/${code}/scores`), s => { sc = s.val() || {}; render(); });
+    db.onValue(ref(`rooms/${code}/reveal`), s => { rv = s.val() || {}; render(); });
+  };
+}
+
+async function render() {
+  clearInterval(tm); bar.style.width = "0";
+  if (!st) return show(`<p class="meta">接続中です</p>`);
+  if (st.phase === "lobby") return show(`<h1>${esc(name)}さん、参加しました</h1><p>ホストが開始するまでお待ちください。</p>`);
+  if (st.phase === "final") { if (played !== "f") { played = "f"; sfx.end(); } return show(`<h1>最終結果</h1><ol class="board">${board(sc, uid)}</ol>`); }
+  const i = st.i;
+  if (!qs[i]) { qs[i] = (await db.get(ref(`rooms/${code}/questions/${i}`))).val(); return render(); }
+  const q = qs[i], rev = st.phase === "reveal" && rv.i === i, done = my.i === i;
+  if (st.phase === "question" && played !== "q" + i) { played = "q" + i; lastTick = 0; sfx.start(); }
+  if (rev && played !== "r" + i) { played = "r" + i; (done && my.c === rv.a) ? sfx.ok() : sfx.ng(); }
+  const btns = q.c.map((t, k) => {
+    const cls = ["ch", "c" + k, rev ? (k === rv.a ? "ok" : "dim") : "", done && my.c === k ? "mine" : ""].join(" ");
+    return `<button class="${cls}" data-k="${k}" ${done || rev ? "disabled" : ""}><b>${"ABCD"[k]}</b>${esc(t)}</button>`;
+  }).join("");
+  let foot;
+  if (rev) {
+    const me = sc[uid] || {t: 0, g: 0};
+    const r = !done ? "未回答" : my.c === rv.a ? `正解！ +${me.g}点` : "不正解";
+    foot = `<p class="result">${r}</p><p class="meta">合計 ${me.t}点</p><ol class="board">${board(sc, uid, 5)}</ol>`;
+  } else foot = `<p class="meta">${done ? "回答しました。結果発表をお待ちください" : "選択肢をタップして回答"}</p>`;
+  show(`<p class="meta">第${i + 1}問 / ${st.n}<span class="pt">${q.p}点</span></p><h2>${esc(q.q)}</h2><div class="choices">${btns}</div>${foot}`);
+  if (st.phase === "question") {
+    const lim = st.sec * 1000;
+    tm = setInterval(() => {
+      const r = lim - (now() - st.start); bar.style.width = Math.max(0, r / lim * 100) + "%";
+      const s = Math.ceil(r / 1000);
+      if (s >= 1 && s <= 3 && s !== lastTick && my.i !== i) { lastTick = s; sfx.tick(); }
+    }, 100);
+  }
+}
+
+app.onclick = e => {
+  const b = e.target.closest(".ch");
+  if (!b || !st || st.phase !== "question" || my.i === st.i) return;
+  my = {i: st.i, c: +b.dataset.k};
+  db.set(ref(`rooms/${code}/answers/${st.i}/${uid}`), {c: my.c, t: db.serverTimestamp()}).catch(() => {});
+  render();
+};
+</script></body></html>

@@ -1,0 +1,38 @@
+:root{--ink:#1D2A44;--paper:#F6F8FB;--line:#D9E0EC;--main:#2F5BEA;--a:#E4572E;--b:#2F6FED;--c:#E8A317;--d:#12937B}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:500 17px/1.6 "Zen Maru Gothic",system-ui,sans-serif}
+#bar{position:fixed;top:0;left:0;height:10px;width:0;background:var(--main);transition:width .1s linear}
+main{max-width:640px;margin:0 auto;padding:32px 20px 48px}
+h1{font-size:28px;font-weight:900;margin:0 0 20px}
+h2{font-size:24px;font-weight:900;line-height:1.5;margin:8px 0 24px}
+label{display:block;margin:0 0 16px;font-weight:700}
+input,textarea{display:block;width:100%;margin-top:6px;padding:12px;border:2px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:inherit}
+input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--main);outline-offset:2px}
+button{font:inherit;font-weight:700;cursor:pointer;border:2px solid var(--ink);background:#fff;color:var(--ink);border-radius:10px;padding:10px 18px}
+button.main{background:var(--main);border-color:var(--main);color:#fff;width:100%;padding:14px;font-size:18px;margin-top:8px}
+.row{display:flex;gap:8px;margin-bottom:16px;align-items:center}
+.row input{margin:0}
+.row label.file{margin:0;padding:10px 14px;border:2px solid var(--ink);border-radius:10px;cursor:pointer;white-space:nowrap}
+#sets{list-style:none;padding:0;margin:0 0 16px}
+#sets li{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+#sets li button{padding:4px 10px;margin-left:auto}#sets li button+button{margin-left:0}
+.err{color:#C0392B;min-height:1.6em;margin:0 0 8px}
+.meta{margin:0;color:#5B6783;font-weight:700}
+.choices{display:grid;gap:12px}
+.ch{display:flex;align-items:center;gap:14px;text-align:left;padding:16px;border:0;color:#fff;font-size:18px;border-radius:12px;width:100%}
+.ch b{display:grid;place-items:center;min-width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.28)}
+.c0{background:var(--a)}.c1{background:var(--b)}.c2{background:var(--c);color:var(--ink)}.c3{background:var(--d)}
+.ch:disabled{cursor:default}
+.dim{opacity:.28}.mine{outline:4px solid var(--ink);outline-offset:2px}
+.ok::after{content:"✓";margin-left:auto;font-size:26px;font-weight:900}
+.code{font-size:56px;font-weight:900;letter-spacing:.15em;margin:0}
+.left{font-size:40px;font-weight:900;margin:12px 0}
+.result{font-size:26px;font-weight:900;margin:16px 0 4px}
+ol.board{list-style:none;padding:0;margin:16px 0}
+.board li{display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.board li span{width:28px;font-weight:900}
+.board li em{margin-left:auto;font-style:normal;font-weight:900}
+.board li.me{background:#E6ECFD;border-radius:8px}
+@media (prefers-reduced-motion:reduce){#bar{transition:none}}
+.pt{display:inline-block;margin-left:10px;padding:0 10px;border:2px solid var(--ink);border-radius:99px;font-weight:900;color:var(--ink)}
+.snd{position:fixed;top:16px;right:14px;padding:4px 12px;font-size:13px}
