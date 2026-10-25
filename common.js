@@ -21,10 +21,31 @@ let offset = 0;
 db.onValue(ref(".info/serverTimeOffset"), s => offset = s.val() || 0);
 export const now = () => Date.now() + offset;
 
-// ランキングのHTML(sc: スコア一覧, me: 自分のuid, k: 表示人数)
-export const board = (sc, me, k = 99) => Object.entries(sc || {})
-  .sort((a, b) => b[1].t - a[1].t).slice(0, k)
-  .map(([id, v], i) => `<li class="${id === me ? "me" : ""}"><span>${i + 1}</span>${esc(v.n)}<em>${v.t}</em></li>`).join("");
+// ランキングのHTML(medals=trueで1〜3位に金銀銅。同点は同順位)
+export const board = (sc, me, k = 99, medals = false) => {
+  const a = Object.entries(sc || {}).sort((x, y) => y[1].t - x[1].t), m = ["🥇", "🥈", "🥉"];
+  return a.slice(0, k).map(([id, v]) => {
+    const r = a.findIndex(z => z[1].t === v.t);
+    return `<li class="${id === me ? "me" : ""}"><span>${medals && v.t > 0 && m[r] ? m[r] : r + 1}</span>${esc(v.n)}<em>${v.t}</em></li>`;
+  }).join("");
+};
+
+// 最終結果:問題ごとの正解と、全員の回答
+export function detail(qs, lg, sc, n, me) {
+  const ids = Object.entries(sc || {}).sort((x, y) => y[1].t - x[1].t).map(e => e[0]);
+  let h = '<h2 class="dh">問題ごとの結果</h2>';
+  for (let i = 0; i < n; i++) {
+    const q = qs[i], l = (lg || {})[i];
+    if (!q || !l) continue;
+    const L = k => k >= 0 && q.c[k] != null ? `${"ABCD"[k]} ${esc(q.c[k])}` : "未回答";
+    h += `<section class="dq"><p class="meta">第${i + 1}問<span class="pt">${q.p}点</span></p><p class="dqt">${esc(q.q)}</p><p class="da">正解 ${L(l.a)}</p><ul>` +
+      ids.map(id => {
+        const k = l.p && l.p[id] != null ? l.p[id] : -1, ok = k === l.a;
+        return `<li class="${ok ? "o" : "x"} ${id === me ? "me" : ""}"><span>${ok ? "○" : "×"}</span>${esc(sc[id].n)}<em>${L(k)}</em></li>`;
+      }).join("") + "</ul></section>";
+  }
+  return h;
+}
 
 // 問題セットの読み取り(CSV または JSON)。CSVは「問題文,A,B,C,D,正解(A〜D),制限秒数」
 function csvRow(l) {
@@ -48,7 +69,7 @@ export function parseSet(t) {
   const out = [];
   for (const r of rows) {
     if (!/^[A-D]$/i.test(String(r[5] ?? ""))) continue; // 見出し行などは読み飛ばす
-    out.push({q: r[0], c: r.slice(1, 5), a: "ABCD".indexOf(r[5].toUpperCase()), s: Math.max(5, +r[6] || 15), p: pts(r[7])});
+    out.push({q: r[0], c: r.slice(1, 5), a: "ABCD".indexOf(r[5].toUpperCase()), s: Math.max(5, +r[6] || 30), p: pts(r[7])});
   }
   if (!out.length) throw new Error("問題を読み取れませんでした。形式を確認してください");
   return out;

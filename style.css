@@ -30,9 +30,20 @@ button.main{background:var(--main);border-color:var(--main);color:#fff;width:100
 .result{font-size:26px;font-weight:900;margin:16px 0 4px}
 ol.board{list-style:none;padding:0;margin:16px 0}
 .board li{display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
-.board li span{width:28px;font-weight:900}
+.board li span{width:34px;font-weight:900}
 .board li em{margin-left:auto;font-style:normal;font-weight:900}
 .board li.me{background:#E6ECFD;border-radius:8px}
 @media (prefers-reduced-motion:reduce){#bar{transition:none}}
 .pt{display:inline-block;margin-left:10px;padding:0 10px;border:2px solid var(--ink);border-radius:99px;font-weight:900;color:var(--ink)}
 .snd{position:fixed;top:16px;right:14px;padding:4px 12px;font-size:13px}
+.wide{width:100%;margin-top:8px;padding:12px}
+.dh{margin-top:36px}
+.dq{border-top:2px solid var(--ink);padding:12px 0 4px;margin-top:16px}
+.dqt{font-weight:900;margin:2px 0}
+.da{margin:0 0 6px;color:#0E7A66;font-weight:700}
+.dq ul{list-style:none;padding:0;margin:0}
+.dq li{display:flex;gap:10px;padding:4px 8px;font-size:15px}
+.dq li span{width:20px;font-weight:900}
+.dq li.o span{color:#0E7A66}.dq li.x span{color:#C0392B}
+.dq li em{margin-left:auto;font-style:normal;color:#5B6783}
+.dq li.me{background:#E6ECFD;border-radius:6px}

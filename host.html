@@ -6,20 +6,21 @@
 <link rel="stylesheet" href="style.css"></head>
 <body><main id="app"></main>
 <script type="module">
-import {db, ready, ref, now, $, esc, parseSet, board, sfx, soundBtn} from "./common.js";
+import {db, ready, ref, now, $, esc, parseSet, board, detail, sfx, soundBtn} from "./common.js";
 soundBtn();
 const app = $("#app"), LS = () => JSON.parse(localStorage.qzSets || "[]");
-let uid, code, qs = [], key = [], players = {}, answers = {}, sc = {}, st = {}, rv = {}, offA = null, subI = -1, busy = false;
+let uid, code, qs = [], key = [], players = {}, answers = {}, sc = {}, st = {}, rv = {}, offA = null, subI = -1, busy = false, lg = {}, editing = false;
 (async () => { uid = (await ready).uid; setup(); })();
 
-function setup(msg = "") {
-  app.innerHTML = `<h1>ホスト画面</h1>
+function setup(msg = "", again = false) {
+  editing = again;
+  app.innerHTML = `<h1>${again ? "次の問題セット" : "ホスト画面"}</h1>
   <label>問題セット(CSVまたはJSONを貼り付け)
   <textarea id="t" rows="10" placeholder="問題文,選択肢A,選択肢B,選択肢C,選択肢D,正解(A〜D),制限秒数,得点(大・中・小)"></textarea></label>
   <div class="row"><input id="nm" placeholder="セット名"><button id="save">保存</button>
   <label class="file">ファイルを開く<input id="f" type="file" accept=".csv,.json,.txt" hidden></label>
   <button id="smp">サンプル</button></div>
-  <ul id="sets"></ul><p class="err" id="e">${msg}</p><button id="mk" class="main">ルームを作成</button>`;
+  <ul id="sets"></ul><p class="err" id="e">${msg}</p><button id="mk" class="main">${again ? "このセットで続ける" : "ルームを作成"}</button>${again ? '<button id="back" class="wide">戻る</button>' : ""}`;
   const t = $("#t"), save = a => localStorage.qzSets = JSON.stringify(a);
   const list = () => $("#sets").innerHTML = LS().map((s, i) => `<li>${esc(s.name)}<button data-l="${i}">読み込む</button><button data-d="${i}">削除</button></li>`).join("");
   list();
@@ -34,9 +35,11 @@ function setup(msg = "") {
   };
   $("#f").onchange = async e => { const f = e.target.files[0]; if (f) { t.value = await f.text(); $("#nm").value = f.name.replace(/\.\w+$/, ""); } };
   $("#smp").onclick = async () => { t.value = await (await fetch("sample.csv")).text(); $("#nm").value = "サンプル"; };
+  if (again) $("#back").onclick = () => { editing = false; draw(); };
   $("#mk").onclick = async () => {
     try { qs = parseSet(t.value); } catch (e) { return $("#e").textContent = "読み込みエラー: " + e.message; }
     key = qs.map(x => x.a);
+    if (again) return restart(true);
     try {
       code = String(Math.floor(1000 + Math.random() * 9000));
       await db.set(ref(`rooms/${code}/host`), uid);
@@ -50,6 +53,7 @@ function control() {
   db.onValue(ref(`rooms/${code}/players`), s => { players = s.val() || {}; draw(); });
   db.onValue(ref(`rooms/${code}/scores`), s => { sc = s.val() || {}; draw(); });
   db.onValue(ref(`rooms/${code}/reveal`), s => { rv = s.val() || {}; draw(); });
+  db.onValue(ref(`rooms/${code}/log`), s => { lg = s.val() || {}; draw(); });
   db.onValue(ref(`rooms/${code}/state`), s => {
     st = s.val() || {};
     if (st.phase === "question" && st.i !== subI) {
@@ -66,6 +70,8 @@ function control() {
     if (a === "next") go(st.i + 1);
     if (a === "final") { sfx.end(); db.update(ref(`rooms/${code}/state`), {phase: "final"}); }
     if (a === "again") location.reload();
+    if (a === "replay") restart(false);
+    if (a === "newset") setup("", true);
   };
 }
 
@@ -73,6 +79,7 @@ let lastTick = 0;
 const go = i => { lastTick = 0; sfx.start(); return db.set(ref(`rooms/${code}/state`), {phase: "question", i, n: qs.length, start: db.serverTimestamp(), sec: qs[i].s}); };
 
 function draw() {
+  if (editing) return;
   const n = Object.keys(players).length, q = qs[st.i];
   const head = `<p class="meta">ルーム ${code} / 参加者 ${n}人</p>`;
   if (st.phase === "lobby") {
@@ -92,7 +99,10 @@ function draw() {
     <ol class="board">${board(sc, "", 5)}</ol>
     <button class="main" data-act="${last ? "final" : "next"}">${last ? "最終結果へ" : "次の問題へ"}</button>`;
   } else if (st.phase === "final") {
-    app.innerHTML = `<h1>最終結果</h1><ol class="board">${board(sc, "")}</ol><button class="main" data-act="again">新しいルームを作る</button>`;
+    app.innerHTML = `<h1>最終結果</h1><ol class="board">${board(sc, "", 99, true)}</ol>
+    <button class="main" data-act="replay">同じ問題でもう一度</button>
+    <button class="wide" data-act="newset">問題セットを変えて続ける</button>
+    <button class="wide" data-act="again">新しいルームを作る</button>${detail(qs, lg, sc, st.n, "")}`;
   }
 }
 
@@ -105,13 +115,22 @@ function tick() {
   if (left < -800 || (n && Object.keys(answers).length >= n)) reveal();
 }
 
+// 同じルームで続ける(changed=trueなら問題セットも入れ替える)。参加者は自動で再登録される
+async function restart(changed) {
+  const u = {log: null, answers: null, reveal: null, scores: null, players: null, state: {phase: "lobby", n: qs.length}};
+  if (changed) { u.questions = qs.map(({q, c, s, p}) => ({q, c, s, p})); u.key = key; }
+  offA && offA(); offA = null; subI = -1; answers = {}; busy = false; editing = false;
+  await db.update(ref(`rooms/${code}`), u);
+}
+
 // 採点:正解なら、その問題の得点(大30・中15・小10)を加算
 async function reveal() {
   if (busy || st.phase !== "question") return;
   busy = true;
-  const i = st.i, a = key[i], lim = st.sec * 1000, counts = [0, 0, 0, 0], up = {};
+  const i = st.i, a = key[i], lim = st.sec * 1000, counts = [0, 0, 0, 0], up = {}, picks = {};
   for (const [id, p] of Object.entries(players)) {
     const r = answers[id]; let g = 0;
+    picks[id] = r ? r.c : -1;
     if (r) {
       counts[r.c]++;
       const el = r.t - st.start;
@@ -119,7 +138,7 @@ async function reveal() {
     }
     up[id] = {n: p.n, t: (sc[id]?.t || 0) + g, g};
   }
-  await db.update(ref(`rooms/${code}`), {reveal: {i, a, counts}, scores: up, state: {...st, phase: "reveal"}});
+  await db.update(ref(`rooms/${code}`), {reveal: {i, a, counts}, scores: up, ["log/" + i]: {a, p: picks}, state: {...st, phase: "reveal"}});
   busy = false;
 }
 </script></body></html>

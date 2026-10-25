@@ -6,10 +6,10 @@
 <link rel="stylesheet" href="style.css"></head>
 <body><div id="bar"></div><main id="app"></main>
 <script type="module">
-import {db, ready, ref, now, $, esc, board, sfx, soundBtn} from "./common.js";
+import {db, ready, ref, now, $, esc, board, detail, sfx, soundBtn} from "./common.js";
 soundBtn();
 const app = $("#app"), bar = $("#bar"), show = h => app.innerHTML = h;
-let uid, code = "", name = "", st = null, sc = {}, rv = {}, qs = {}, my = {i: -1, c: -1}, tm, played = "", lastTick = 0;
+let uid, code = "", name = "", st = null, sc = {}, rv = {}, qs = {}, my = {i: -1, c: -1}, tm, played = "", lastTick = 0, lg = {}, allQ = false, reg = false;
 const q0 = new URLSearchParams(location.search).get("room");
 (async () => { uid = (await ready).uid; code = q0 || localStorage.qzRoom || ""; name = localStorage.qzName || ""; form(); })();
 
@@ -29,14 +29,24 @@ function form(msg = "") {
     db.onValue(ref(`rooms/${code}/state`), s => { st = s.val(); render(); });
     db.onValue(ref(`rooms/${code}/scores`), s => { sc = s.val() || {}; render(); });
     db.onValue(ref(`rooms/${code}/reveal`), s => { rv = s.val() || {}; render(); });
+    db.onValue(ref(`rooms/${code}/log`), s => { lg = s.val() || {}; render(); });
   };
 }
 
 async function render() {
   clearInterval(tm); bar.style.width = "0";
   if (!st) return show(`<p class="meta">接続中です</p>`);
-  if (st.phase === "lobby") return show(`<h1>${esc(name)}さん、参加しました</h1><p>ホストが開始するまでお待ちください。</p>`);
-  if (st.phase === "final") { if (played !== "f") { played = "f"; sfx.end(); } return show(`<h1>最終結果</h1><ol class="board">${board(sc, uid)}</ol>`); }
+  if (st.phase !== "lobby") reg = false;
+  if (st.phase === "lobby") {
+    qs = {}; allQ = false; my = {i: -1, c: -1}; played = ""; lg = {};
+    if (!reg) { reg = true; db.set(ref(`rooms/${code}/players/${uid}`), {n: name}); }
+    return show(`<h1>${esc(name)}さん、参加しました</h1><p>ホストが開始するまでお待ちください。</p>`);
+  }
+  if (st.phase === "final") {
+    if (played !== "f") { played = "f"; sfx.end(); }
+    if (!allQ) { Object.entries((await db.get(ref(`rooms/${code}/questions`))).val() || {}).forEach(([k, x]) => qs[k] = x); allQ = true; return render(); }
+    return show(`<h1>最終結果</h1><ol class="board">${board(sc, uid, 99, true)}</ol>${detail(qs, lg, sc, st.n, uid)}`);
+  }
   const i = st.i;
   if (!qs[i]) { qs[i] = (await db.get(ref(`rooms/${code}/questions/${i}`))).val(); return render(); }
   const q = qs[i], rev = st.phase === "reveal" && rv.i === i, done = my.i === i;
