@@ -9,7 +9,7 @@
 import {db, ready, ref, now, $, esc, board, detail, sfx, soundBtn} from "./common.js";
 soundBtn();
 const app = $("#app"), bar = $("#bar"), show = h => app.innerHTML = h;
-let uid, code = "", name = "", st = null, sc = {}, rv = {}, qs = {}, my = {i: -1, c: -1}, tm, played = "", lastTick = 0, lg = {}, allQ = false, reg = false;
+let uid, code = "", name = "", st = null, sc = {}, rv = {}, qs = {}, my = {i: -1, c: -1}, sel = {i: -1, c: -1}, tm, played = "", lastTick = 0, lg = {}, allQ = false, reg = false;
 const q0 = new URLSearchParams(location.search).get("room");
 (async () => { uid = (await ready).uid; code = q0 || localStorage.qzRoom || ""; name = localStorage.qzName || ""; form(); })();
 
@@ -38,7 +38,7 @@ async function render() {
   if (!st) return show(`<p class="meta">接続中です</p>`);
   if (st.phase !== "lobby") reg = false;
   if (st.phase === "lobby") {
-    qs = {}; allQ = false; my = {i: -1, c: -1}; played = ""; lg = {};
+    qs = {}; allQ = false; my = {i: -1, c: -1}; sel = {i: -1, c: -1}; played = ""; lg = {};
     if (!reg) { reg = true; db.set(ref(`rooms/${code}/players/${uid}`), {n: name}); }
     return show(`<h1>${esc(name)}さん、参加しました</h1><p>ホストが開始するまでお待ちください。</p>`);
   }
@@ -49,19 +49,20 @@ async function render() {
   }
   const i = st.i;
   if (!qs[i]) { qs[i] = (await db.get(ref(`rooms/${code}/questions/${i}`))).val(); return render(); }
-  const q = qs[i], rev = st.phase === "reveal" && rv.i === i, done = my.i === i;
+  const q = qs[i], rev = st.phase === "reveal" && rv.i === i, done = my.i === i, cur = done ? my.c : sel.i === i ? sel.c : -1;
   if (st.phase === "question" && played !== "q" + i) { played = "q" + i; lastTick = 0; sfx.start(); }
   if (rev && played !== "r" + i) { played = "r" + i; (done && my.c === rv.a) ? sfx.ok() : sfx.ng(); }
   const btns = q.c.map((t, k) => {
-    const cls = ["ch", "c" + k, rev ? (k === rv.a ? "ok" : "dim") : "", done && my.c === k ? "mine" : ""].join(" ");
+    const cls = ["ch", "c" + k, rev ? (k === rv.a ? "ok" : "dim") : "", cur === k ? "mine" : ""].join(" ");
     return `<button class="${cls}" data-k="${k}" ${done || rev ? "disabled" : ""}><b>${"ABCD"[k]}</b>${esc(t)}</button>`;
   }).join("");
   let foot;
   if (rev) {
     const me = sc[uid] || {t: 0, g: 0};
-    const r = !done ? "未回答" : my.c === rv.a ? `正解！ +${me.g}点` : "不正解";
-    foot = `<p class="result">${r}</p><p class="meta">合計 ${me.t}点</p><ol class="board">${board(sc, uid, 5)}</ol>`;
-  } else foot = `<p class="meta">${done ? "回答しました。結果発表をお待ちください" : "選択肢をタップして回答"}</p>`;
+    const r = !done ? (cur >= 0 ? "未回答(確定されませんでした)" : "未回答") : my.c === rv.a ? `正解！ +${me.g}点` : "不正解";
+    foot = `<p class="result">${r}</p><p class="meta">合計 ${me.t}点</p><p class="meta"><span id="nx">10</span>秒後に${st.i + 1 >= st.n ? "最終結果" : "次の問題"}へ進みます</p><ol class="board">${board(sc, uid, 5)}</ol>`;
+  } else foot = done ? `<p class="meta">回答を確定しました。結果発表をお待ちください</p>`
+    : `<button id="ok" class="main" ${cur >= 0 ? "" : "disabled"}>確定する</button><p class="meta">選択肢を選んで「確定する」を押してください。確定するまで選び直せます</p>`;
   show(`<p class="meta">第${i + 1}問 / ${st.n}<span class="pt">${q.p}点</span></p><h2>${esc(q.q)}</h2><div class="choices">${btns}</div>${foot}`);
   if (st.phase === "question") {
     const lim = st.sec * 1000;
@@ -71,13 +72,20 @@ async function render() {
       if (s >= 1 && s <= 3 && s !== lastTick && my.i !== i) { lastTick = s; sfx.tick(); }
     }, 100);
   }
+  if (rev && st.rev) tm = setInterval(() => {
+    const l = 10000 - (now() - st.rev); bar.style.width = Math.max(0, l / 100) + "%";
+    const e = $("#nx"); if (e) e.textContent = Math.max(0, Math.ceil(l / 1000));
+  }, 100);
 }
 
 app.onclick = e => {
+  if (!st || st.phase !== "question" || my.i === st.i) return;
   const b = e.target.closest(".ch");
-  if (!b || !st || st.phase !== "question" || my.i === st.i) return;
-  my = {i: st.i, c: +b.dataset.k};
-  db.set(ref(`rooms/${code}/answers/${st.i}/${uid}`), {c: my.c, t: db.serverTimestamp()}).catch(() => {});
-  render();
+  if (b) { sel = {i: st.i, c: +b.dataset.k}; return render(); }
+  if (e.target.closest("#ok") && sel.i === st.i) {
+    my = {...sel};
+    db.set(ref(`rooms/${code}/answers/${st.i}/${uid}`), {c: my.c, t: db.serverTimestamp()}).catch(() => {});
+    render();
+  }
 };
 </script></body></html>

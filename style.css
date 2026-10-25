@@ -47,3 +47,4 @@ ol.board{list-style:none;padding:0;margin:16px 0}
 .dq li.o span{color:#0E7A66}.dq li.x span{color:#C0392B}
 .dq li em{margin-left:auto;font-style:normal;color:#5B6783}
 .dq li.me{background:#E6ECFD;border-radius:6px}
+button.main:disabled{opacity:.4;cursor:default}

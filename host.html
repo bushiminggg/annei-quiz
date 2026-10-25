@@ -68,15 +68,17 @@ function control() {
     if (a === "start") go(0);
     if (a === "close") reveal();
     if (a === "next") go(st.i + 1);
-    if (a === "final") { sfx.end(); db.update(ref(`rooms/${code}/state`), {phase: "final"}); }
+    if (a === "final") finish();
     if (a === "again") location.reload();
     if (a === "replay") restart(false);
     if (a === "newset") setup("", true);
   };
 }
 
-let lastTick = 0;
-const go = i => { lastTick = 0; sfx.start(); return db.set(ref(`rooms/${code}/state`), {phase: "question", i, n: qs.length, start: db.serverTimestamp(), sec: qs[i].s}); };
+let lastTick = 0, adv = true;
+const AUTO = 10000;
+const finish = () => { adv = true; sfx.end(); return db.update(ref(`rooms/${code}/state`), {phase: "final"}); };
+const go = i => { lastTick = 0; adv = true; sfx.start(); return db.set(ref(`rooms/${code}/state`), {phase: "question", i, n: qs.length, start: db.serverTimestamp(), sec: qs[i].s}); };
 
 function draw() {
   if (editing) return;
@@ -97,7 +99,8 @@ function draw() {
     app.innerHTML = `${head}<p class="meta">第${st.i + 1}問の結果</p><h2>${esc(q.q)}</h2>
     <div class="choices">${q.c.map((t, k) => `<div class="ch c${k} ${k === rv.a ? "ok" : "dim"}"><b>${"ABCD"[k]}</b>${esc(t)}<span style="margin-left:auto">${(rv.counts || [])[k] || 0}人</span></div>`).join("")}</div>
     <ol class="board">${board(sc, "", 5)}</ol>
-    <button class="main" data-act="${last ? "final" : "next"}">${last ? "最終結果へ" : "次の問題へ"}</button>`;
+    <p class="meta"><span id="nx">${st.rev ? Math.max(0, Math.ceil((AUTO - (now() - st.rev)) / 1000)) : 10}</span>秒後に${last ? "最終結果" : "次の問題"}へ進みます</p>
+    <button class="main" data-act="${last ? "final" : "next"}">今すぐ${last ? "最終結果へ" : "次の問題へ"}</button>`;
   } else if (st.phase === "final") {
     app.innerHTML = `<h1>最終結果</h1><ol class="board">${board(sc, "", 99, true)}</ol>
     <button class="main" data-act="replay">同じ問題でもう一度</button>
@@ -107,6 +110,12 @@ function draw() {
 }
 
 function tick() {
+  if (st.phase === "reveal" && st.rev && !adv) {
+    const l = AUTO - (now() - st.rev), e = $("#nx");
+    if (e) e.textContent = Math.max(0, Math.ceil(l / 1000));
+    if (l <= 0) { adv = true; st.i + 1 >= st.n ? finish() : go(st.i + 1); }
+    return;
+  }
   if (st.phase !== "question" || !st.start) return;
   const left = st.sec * 1000 - (now() - st.start), el = $("#left"), n = Object.keys(players).length;
   if (el) el.textContent = Math.max(0, Math.ceil(left / 1000));
@@ -119,14 +128,14 @@ function tick() {
 async function restart(changed) {
   const u = {log: null, answers: null, reveal: null, scores: null, players: null, state: {phase: "lobby", n: qs.length}};
   if (changed) { u.questions = qs.map(({q, c, s, p}) => ({q, c, s, p})); u.key = key; }
-  offA && offA(); offA = null; subI = -1; answers = {}; busy = false; editing = false;
+  offA && offA(); offA = null; adv = true; subI = -1; answers = {}; busy = false; editing = false;
   await db.update(ref(`rooms/${code}`), u);
 }
 
 // 採点:正解なら、その問題の得点(大30・中15・小10)を加算
 async function reveal() {
   if (busy || st.phase !== "question") return;
-  busy = true;
+  busy = true; adv = false;
   const i = st.i, a = key[i], lim = st.sec * 1000, counts = [0, 0, 0, 0], up = {}, picks = {};
   for (const [id, p] of Object.entries(players)) {
     const r = answers[id]; let g = 0;
@@ -138,7 +147,7 @@ async function reveal() {
     }
     up[id] = {n: p.n, t: (sc[id]?.t || 0) + g, g};
   }
-  await db.update(ref(`rooms/${code}`), {reveal: {i, a, counts}, scores: up, ["log/" + i]: {a, p: picks}, state: {...st, phase: "reveal"}});
+  await db.update(ref(`rooms/${code}`), {reveal: {i, a, counts}, scores: up, ["log/" + i]: {a, p: picks}, state: {...st, phase: "reveal", rev: db.serverTimestamp()}});
   busy = false;
 }
 </script></body></html>
